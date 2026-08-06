@@ -1,27 +1,32 @@
-# 🎵 Spotify 熱門歌曲預測與特徵分析 (Spotify Popularity Prediction)
+# 🎵 Spotify 熱門歌曲預測與特徵分析 
 
-本專案旨在透過歌曲的音訊特徵（Audio Features），結合機器學習與深度學習技術，建構分類模型以預測歌曲是否具備成為「熱門歌曲（Popularity > 50）」的潛力，並分析影響歌曲受歡迎程度的核心關鍵特徵。
+本專案旨在透過歌曲的音訊特徵，結合機器學習與深度學習技術，建構分類模型以預測歌曲是否具備成為「熱門歌曲（Popularity > 50）」的潛力，並分析影響歌曲受歡迎程度的核心關鍵特徵。
 
 ---
 
-## 📌 專案流程與方法論 (Workflow)
+## 📌 專案流程與方法論
 
-### 1. 資料處理與清洗 (Data Preprocessing)
+### 1. 資料處理與清洗 
 * **文字編碼處理**：使用 `latin1` 編碼讀取 CSV 資料集，防止歌名中含有德文、法文等特殊字元導致 `utf-8` 解碼報錯。
 * **目標變數定義**：將連續型欄位 `popularity` 轉換為數值，並建立二元分類目標 `is_popular`（`popularity > 50` 標記為 `1`，其餘為 `0`）。
 * **資料轉譯與缺失值填補**：將 12 個音訊特徵強制轉為數值型態（`errors='coerce'`），並使用平均數（`mean`）進行補值，避免後續模型計算中斷。
 
-### 2. 類別不平衡評估 (Class Imbalance Analysis)
+### 2. 類別不平衡評估 
 * 檢視數據分佈發現存在類別不平衡問題：**非熱門歌曲約佔 75%**，**熱門歌曲約佔 25%**。
 * 為確保訓練集與測試集的分佈一致，切分資料時設定分層抽樣（`stratify=y`）。
 
-### 3. 特徵篩選：隨機森林重要性排序 (Feature Selection)
-* 採用 `RandomForestClassifier` (100 棵決策樹) 計算 12 個音訊特徵的重要性得分。
-* 利用 Seaborn 視覺化特徵重要性排名，並選出 **前 8 個核心特徵 (TOP_K = 8)** 供深度學習模型訓練。
+### 3. 特徵篩選：隨機森林重要性排序 
+採用 `RandomForestClassifier` (100 棵決策樹) 計算 12 個音訊特徵的重要性得分，並篩選出 **前 8 個核心特徵 (TOP_K = 8)** 作為深度學習模型的輸入。
+
+![Spotify Audio Features - Random Forest Feature Importance](Spotify%20Tracks%E7%89%B9%E5%BE%B5%E5%88%86%E6%95%B8%E5%9C%96.jpg)
+
+**📊 特徵重要性分析：**
+* **Top 8 核心特徵**：`valence`（情緒正向度）、`duration_ms`（歌曲長度）、`tempo`（節奏 BPM）、`loudness`（響度）、`acousticness`（原聲度）、`energy`（能量感）、`danceability`（舞蹈性）、`liveness`（現場感）。
+* **排序觀察**：`valence` 與 `duration_ms` 佔據最高權重（重要性得分突破 `0.1`），代表歌曲表達的情緒氛圍與長度是決定熱門度的關鍵要素；而 `mode` 與 `key` 的重要性最低，因此在特徵篩選階段被剔除。
 
 ---
 
-## ⚙️ 模型架構 (Model Architecture)
+##  模型架構 (Model Architecture)
 
 * **特徵標準化**：使用 `StandardScaler` 擬合訓練集並轉換測試集，消除特徵間的量綱差異。
 * **神經網絡架構 (MLP)**：
@@ -34,9 +39,9 @@
 
 ---
 
-## 📊 深度學習模型訓練日誌 (Training Logs)
+## 📊 深度學習模型訓練歷程 (Training Dynamics)
 
-模型採用 **Adam (lr=0.0001)** 優化器與 **Binary Crossentropy** 損失函數，以下為訓練過程中關鍵 Epoch 的指標變化狀況：
+模型採用 **Adam (lr=0.0001)** 優化器與 **Binary Crossentropy** 損失函數，下表為訓練過程中的關鍵指標變化狀況：
 
 | Epoch | Loss | Accuracy | AUC | Val Loss | Val Accuracy | Val AUC |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -48,18 +53,18 @@
 | **86** | 0.5270 | 76.15% | 0.6460 | **0.5226** | **76.10%** | **0.6666** |
 | **96** | 0.5270 | 76.16% | 0.6462 | 0.5246 | 76.06% | 0.6675 |
 
-> 💡 **訓練觀察**：`Loss` 自初始的 `0.7015` 穩定下降至 `0.5270`；`Val Loss` 於 Epoch 86 達到最低點 `0.5226` 後趨於平緩，最終由 `EarlyStopping` 觸發停止並恢復最佳權重。
+>  **訓練觀察**：`Loss` 自初始的 `0.7015` 穩定下降至 `0.5270`；`Val Loss` 於 Epoch 86 達到最低點 `0.5226` 後趨於平緩，最終由 `EarlyStopping` 觸發停止並恢復最佳權重。
 
 ---
 
-## 🏆 最終模型評估結果 (Final Evaluation)
+##  最終模型評估結果 (Final Evaluation)
 
 使用獨立測試集 (`X_test_scaled`, `y_test`) 進行最終預測與評估：
 
-| 評估指標 (Metric) | 測試集數據 (Test Score) | 說明 |
+| 評估指標 (Metric) | 測試集表現 (Test Score) | 說明 |
 | :--- | :---: | :--- |
-| **Accuracy (準確率)** | **`0.7603` (76.03%)** | 全域分類正確率 |
-| **AUC (曲線下面積)** | **`0.6675`** | 衡量模型對熱門/非熱門類別的區分能力 |
+| **Accuracy (準確率)** | **`0.7603` (76.03%)** | 模型對測試集的總體分類正確率 |
+| **AUC (曲線下面積)** | **`0.6675`** | 衡量模型對熱門與非熱門歌曲的區分能力 |
 
 ---
 
@@ -83,6 +88,7 @@
 
 ```text
 .
-├── dataset.csv       # 原始 Spotify 音樂資料集
-├── main.py           # 主要訓練與評估腳本 (Random Forest & Keras MLP)
-└── README.md         # 專案說明檔案
+├── dataset.csv                              # 原始 Spotify 音樂資料集
+├── main.py                                  # 主要訓練與評估腳本 (Random Forest & Keras MLP)
+├── Spotify Tracks特徵分數圖.jpg              # 特徵重要性視覺化圖表
+└── README.md                                # 專案說明檔案
